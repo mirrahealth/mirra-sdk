@@ -8,17 +8,21 @@ Two entry points:
 from __future__ import annotations
 
 import json
+import os
 import urllib.request
 from typing import Any, Callable, Optional, Union
 
-from .dataset import Case, Dataset
+from .dataset import Dataset
 from .judges import Judge
 from .metrics import hit_at_k, mrr, ndcg_at_k, precision_at_k, recall_at_k
 from .report import CaseResult, Report
 
 # Mirra Retrieval Score weighting (renormalized over whichever pillars exist)
 PILLAR_WEIGHTS = {"retrieval": 0.4, "faithfulness": 0.3, "answer": 0.3}
-DEFAULT_BASE_URL = "https://mirrahealth.io"
+# the hosted Mirra app (override with MIRRA_BASE_URL, e.g. http://localhost:3000)
+DEFAULT_BASE_URL = os.getenv(
+    "MIRRA_BASE_URL", "https://mirra-eval-leqtfzljxa-uc.a.run.app"
+)
 
 
 def _overall(pillars: dict) -> float:
@@ -60,7 +64,7 @@ class Mirra:
         k: int = 5,
         base_url: str = DEFAULT_BASE_URL,
     ):
-        self.api_key = api_key
+        self.api_key = api_key or os.getenv("MIRRA_API_KEY")
         self.k = k
         self.base_url = base_url.rstrip("/")
         if isinstance(judge, Judge):
@@ -140,6 +144,7 @@ class Mirra:
         dataset: Union[Dataset, list],
         *,
         k: Optional[int] = None,
+        name: Optional[str] = None,
         on_case: Optional[Callable[[CaseResult], None]] = None,
         progress: bool = True,
     ) -> Report:
@@ -167,13 +172,15 @@ class Mirra:
 
         report = Report.build(results, k)
         if self.api_key:
-            self._sync(report)
+            self._sync(report, name)
         return report
 
     # ── optional: push the report to the Mirra dashboard ───────
-    def _sync(self, report: Report) -> None:
+    def _sync(self, report: Report, name: Optional[str] = None) -> None:
         try:
-            body = json.dumps({"kind": "retrieval", "report": report.to_dict()}).encode()
+            body = json.dumps(
+                {"kind": "retrieval", "name": name or "Retrieval eval", "report": report.to_dict()}
+            ).encode()
             req = urllib.request.Request(
                 f"{self.base_url}/api/sdk-runs",
                 data=body,
