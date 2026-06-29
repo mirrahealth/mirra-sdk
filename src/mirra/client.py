@@ -33,6 +33,15 @@ def _overall(pillars: dict) -> float:
     return sum(PILLAR_WEIGHTS[k] * v for k, v in present.items()) / total_w
 
 
+def _safe(fn, *args):
+    """Run a judge call; on any failure (bad key, rate limit, parse) return None
+    so the pillar is skipped rather than crashing the whole evaluation."""
+    try:
+        return fn(*args)
+    except Exception:
+        return None
+
+
 def _normalize_output(out: Any) -> tuple[Optional[str], list[str], list[str]]:
     """Accept dict / object / str from the agent; return (answer, contexts, context_ids)."""
     if out is None:
@@ -103,23 +112,28 @@ class Mirra:
             metrics["hit@k"] = hit_at_k(context_ids, relevant_ids, k)
             retrieval_pillar = metrics["ndcg@k"]
         if self.judge.available and contexts:
-            metrics["context_relevance"] = self.judge.context_relevance(query, contexts)
-            if retrieval_pillar is None:  # no labels → judge carries the pillar
-                retrieval_pillar = metrics["context_relevance"]
+            cr = _safe(self.judge.context_relevance, query, contexts)
+            if cr is not None:
+                metrics["context_relevance"] = cr
+                if retrieval_pillar is None:  # no labels → judge carries the pillar
+                    retrieval_pillar = cr
 
-        # ── generation pillars (RAG) ──
+        # ── generation pillars (RAG) ── (judge failures degrade gracefully)
         faithfulness_pillar: Optional[float] = None
         answer_pillar: Optional[float] = None
         if answer is not None and self.judge.available:
             if contexts:
-                metrics["faithfulness"] = self.judge.faithfulness(answer, contexts)
-                faithfulness_pillar = metrics["faithfulness"]
+                f = _safe(self.judge.faithfulness, answer, contexts)
+                if f is not None:
+                    metrics["faithfulness"] = faithfulness_pillar = f
             if expected_answer is not None:
-                metrics["answer_correctness"] = self.judge.answer_correctness(answer, expected_answer)
-                answer_pillar = metrics["answer_correctness"]
+                a = _safe(self.judge.answer_correctness, answer, expected_answer)
+                if a is not None:
+                    metrics["answer_correctness"] = answer_pillar = a
             else:
-                metrics["answer_relevance"] = self.judge.answer_relevance(query, answer)
-                answer_pillar = metrics["answer_relevance"]
+                a = _safe(self.judge.answer_relevance, query, answer)
+                if a is not None:
+                    metrics["answer_relevance"] = answer_pillar = a
 
         pillars = {
             "retrieval": retrieval_pillar,
