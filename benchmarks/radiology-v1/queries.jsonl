@@ -1,0 +1,24 @@
+{"query": "What are the findings of the MRI of the brain in this patient?", "relevant_ids": ["r0021"], "expected_answer": "Mild age-related changes; no acute intracranial pathology."}
+{"query": "What does the CT chest reveal regarding a potential lung mass?", "relevant_ids": ["r0010"], "expected_answer": "Suspicious for primary lung malignancy; further evaluation recommended."}
+{"query": "What does the abdominal ultrasound indicate about the liver condition?", "relevant_ids": ["r0026"], "expected_answer": "Mild hepatic steatosis; otherwise unremarkable abdominal ultrasound."}
+{"query": "What is the conclusion from the MRI of the lumbar spine?", "relevant_ids": ["r0042"], "expected_answer": "Normal MRI of the lumbar spine."}
+{"query": "What is the significance of the findings from the chest radiograph?", "relevant_ids": ["r0004"], "expected_answer": "Bilateral pulmonary nodules, further evaluation recommended."}
+{"query": "What does the chest radiograph reveal about the condition of the lungs and heart?", "relevant_ids": ["r0005"], "expected_answer": "Normal chest radiograph."}
+{"query": "What is the condition of the right knee as seen in the radiographs?", "relevant_ids": ["r0035"], "expected_answer": "Normal right knee radiographs."}
+{"query": "What does the chest radiograph suggest about potential pneumonia in the left upper lobe?", "relevant_ids": ["r0007"], "expected_answer": "Suspected left upper lobe pneumonia."}
+{"query": "What findings were observed in the left occipital lobe on the MRI?", "relevant_ids": ["r0024"], "expected_answer": "Enhancing nodule in the left occipital lobe; differential includes a primary brain tumor or metastasis."}
+{"query": "What potential pathology is indicated in the left shoulder based on the radiographs?", "relevant_ids": ["r0038"], "expected_answer": "Possible rotator cuff pathology; recommend clinical correlation."}
+{"query": "What is the condition identified at L3-L4 in the lumbar spine MRI report?", "relevant_ids": ["r0044"], "expected_answer": "Severe disc bulge at L3-L4 with foraminal narrowing."}
+{"query": "What do the right wrist radiographs indicate regarding bone integrity?", "relevant_ids": ["r0033"], "expected_answer": "Normal right wrist radiographs."}
+{"query": "What does the CT chest report suggest about the large cavitary lesion in the right lower lobe?", "relevant_ids": ["r0014"], "expected_answer": "Cavitary lesion raises concern for infectious process; further evaluation with follow-up imaging suggested."}
+{"query": "What diagnosis is given for the consolidation observed in the right lower lobe on the chest radiograph?", "relevant_ids": ["r0003"], "expected_answer": "Right lower lobe pneumonia."}
+{"query": "What is the finding related to pleural fluid in the chest radiograph report?", "relevant_ids": ["r0006"], "expected_answer": "Left pleural effusion."}
+{"query": "What does the abdominal ultrasound suggest regarding the pancreas and the presence of free fluid?", "relevant_ids": ["r0028"], "expected_answer": "Possible pancreatitis with pelvic free fluid; further evaluation recommended."}
+{"query": "What are the findings related to gallstones and kidney condition in this abdominal ultrasound?", "relevant_ids": ["r0027"], "expected_answer": "Cholelithiasis with mild hydronephrosis of the right kidney."}
+{"query": "What does the MRI report indicate about the lumbar spine condition?", "relevant_ids": ["r0045"], "expected_answer": "Unremarkable MRI of the lumbar spine."}
+{"query": "What does the chest radiograph reveal about lung conditions?", "relevant_ids": ["r0008"], "expected_answer": "Findings consistent with emphysema."}
+{"query": "What are the ultrasound findings regarding liver and kidney conditions?", "relevant_ids": ["r0031"], "expected_answer": "Mild hepatic steatosis and right hydronephrosis."}
+{"query": "What is the suspected diagnosis for the lesion found in the right frontal lobe?", "relevant_ids": ["r0018"], "expected_answer": "Suspected low-grade glioma in the right frontal lobe."}
+{"query": "What type of fracture is reported for the left index finger?", "relevant_ids": ["r0036"], "expected_answer": "Fracture of the proximal phalanx of the left index finger."}
+{"query": "What is the condition observed in the pleura according to the chest radiograph?", "relevant_ids": ["r0002"], "expected_answer": "Mild pleural thickening, likely chronic."}
+{"query": "What were the findings of the MRI of the brain?", "relevant_ids": ["r0019"], "expected_answer": "Normal MRI findings."}

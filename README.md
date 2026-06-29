@@ -69,6 +69,30 @@ A list of cases, or JSONL. Labels are **optional** — that's the hybrid model:
 **Mirra Retrieval Score** — weighted across the pillars that apply:
 `retrieval 0.4 · faithfulness 0.3 · answer 0.3` (renormalized over present pillars).
 
+## Test on a Mirra benchmark (synthetic radiology)
+
+Don't have a labeled eval set? Use a **Mirra-hosted synthetic benchmark**. It's
+a corpus of fictional radiology reports + labeled queries — 100% synthetic, no
+PHI. Downloaded and cached on first use.
+
+```python
+from mirra import evaluate
+from mirra.benchmarks import load_radiology
+
+corpus, dataset = load_radiology()     # ~/.cache/mirra (downloads once)
+
+my_retriever.index(corpus)             # index Mirra's corpus into YOUR retriever
+report = evaluate(my_agent, dataset, k=5)
+print(report)
+```
+
+- `corpus` — `list[{id, text, modality, region, ...}]`; load these into your retriever.
+- `dataset` — labeled queries (each query's relevant report id is correct by construction).
+- Override the host with `MIRRA_BENCHMARK_URL` (e.g. a GCS bucket).
+
+> Synthetic and **not clinically validated** — for benchmarking retrieval
+> quality, not clinical use.
+
 ## The LLM judge
 
 Auto-detects a provider from the environment (`OPENAI_API_KEY`, then
