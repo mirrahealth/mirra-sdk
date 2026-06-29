@@ -1,8 +1,8 @@
 {
   "name": "radiology",
   "version": "v1",
-  "corpus": 48,
-  "queries": 24,
+  "corpus": 599,
+  "queries": 200,
   "model": "gpt-4o-mini",
   "studies": [
     "CXR",
@@ -12,7 +12,7 @@
     "XR_EXTREMITY",
     "MRI_SPINE"
   ],
-  "generated_at": "2026-06-29T21:04:55.173988+00:00",
+  "generated_at": "2026-06-29T21:21:41.146099+00:00",
   "synthetic": true,
   "clinically_validated": false
 }

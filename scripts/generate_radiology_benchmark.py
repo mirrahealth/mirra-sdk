@@ -2,11 +2,12 @@
 
 Produces a corpus of fictional radiology reports + queries whose ground-truth
 relevant report is correct *by construction* (each query is written from a
-specific report). Output: corpus.jsonl, queries.jsonl, manifest.json.
+specific report). Chunked + parallelized so it scales to hundreds of reports.
 
   OPENAI_API_KEY=... python scripts/generate_radiology_benchmark.py \
-      --reports-per-study 10 --queries 30 --out benchmarks/radiology-v1
+      --reports-per-study 100 --queries 200 --out benchmarks/radiology-v1
 
+Output: corpus.jsonl, queries.jsonl, manifest.json.
 Synthetic and NOT clinically validated — for benchmarking retrieval, not care.
 """
 
@@ -15,7 +16,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import random
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 from openai import OpenAI
@@ -34,7 +37,8 @@ STUDIES = [
 REPORT_SYS = (
     "You generate SYNTHETIC, fictional radiology reports for software testing. "
     "Never use real patient data. Reports must be realistic in structure and "
-    "terminology, vary between normal and abnormal findings, and be concise. "
+    "terminology. Vary widely across the batch: mix normal and abnormal, vary "
+    "anatomy, pathology, severity, and patient context. Keep each concise. "
     'Return strict JSON: {"reports": [{"technique": str, "findings": str, "impression": str}, ...]}.'
 )
 
@@ -47,70 +51,90 @@ QUERY_SYS = (
 )
 
 
-def _json(client: OpenAI, system: str, user: str, max_tokens: int = 1800) -> dict:
+def _json(client: OpenAI, system: str, user: str, max_tokens: int = 2400) -> dict:
     resp = client.chat.completions.create(
         model=MODEL,
         messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
         response_format={"type": "json_object"},
-        temperature=0.7,
+        temperature=0.8,
         max_tokens=max_tokens,
     )
-    return json.loads(resp.choices[0].message.content or "{}")
+    try:
+        return json.loads(resp.choices[0].message.content or "{}")
+    except Exception:
+        return {}
 
 
-def gen_reports(client: OpenAI, study_label: str, n: int) -> list[dict]:
-    out = _json(client, REPORT_SYS, f"Generate {n} distinct synthetic {study_label} reports.")
-    return out.get("reports", [])[:n]
+def _report_chunk(client: OpenAI, label: str, m: int) -> list[dict]:
+    out = _json(client, REPORT_SYS, f"Generate {m} distinct synthetic {label} reports.")
+    return [r for r in out.get("reports", []) if r.get("findings") and r.get("impression")]
 
 
-def gen_queries(client: OpenAI, reports: list[dict]) -> list[dict]:
-    payload = [{"id": r["id"], "impression": r.get("impression", ""), "report": r["text"][:400]} for r in reports]
+def _query_chunk(client: OpenAI, reports: list[dict]) -> list[dict]:
+    payload = [{"id": r["id"], "impression": r["impression"], "report": r["text"][:400]} for r in reports]
     out = _json(client, QUERY_SYS, "Reports:\n" + json.dumps(payload))
-    return out.get("queries", [])
+    ids = {r["id"] for r in reports}
+    return [q for q in out.get("queries", []) if q.get("id") in ids and q.get("query")]
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--reports-per-study", type=int, default=10)
-    ap.add_argument("--queries", type=int, default=30)
+    ap.add_argument("--reports-per-study", type=int, default=100)
+    ap.add_argument("--queries", type=int, default=200)
     ap.add_argument("--out", default="benchmarks/radiology-v1")
-    ap.add_argument("--batch", type=int, default=5, help="queries per LLM call")
+    ap.add_argument("--report-batch", type=int, default=6)
+    ap.add_argument("--query-batch", type=int, default=5)
+    ap.add_argument("--workers", type=int, default=8)
     args = ap.parse_args()
 
     client = OpenAI()
     os.makedirs(args.out, exist_ok=True)
-
-    # ── corpus ──
-    corpus: list[dict] = []
-    n = 0
-    for code, label, region in STUDIES:
-        reports = gen_reports(client, label, args.reports_per_study)
-        for r in reports:
-            n += 1
-            rid = f"r{n:04d}"
-            text = f"TECHNIQUE: {r.get('technique','')}\nFINDINGS: {r.get('findings','')}\nIMPRESSION: {r.get('impression','')}".strip()
-            corpus.append({
-                "id": rid, "text": text, "study_type": code,
-                "modality": label, "region": region, "impression": r.get("impression", ""),
-            })
-        print(f"  {code:<14} {len(reports)} reports  (corpus={n})", flush=True)
-
-    # ── queries (labels correct by construction) ──
-    import random
     rng = random.Random(7)
+
+    # ── corpus: parallelize all report chunks across all studies ──
+    tasks = []  # (code, label, region, size)
+    for code, label, region in STUDIES:
+        rem = args.reports_per_study
+        while rem > 0:
+            tasks.append((code, label, region, min(args.report_batch, rem)))
+            rem -= args.report_batch
+
+    corpus: list[dict] = []
+    seen: set[str] = set()
+    done = 0
+    with ThreadPoolExecutor(max_workers=args.workers) as ex:
+        futs = {ex.submit(_report_chunk, client, t[1], t[3]): t for t in tasks}
+        for fut in as_completed(futs):
+            code, label, region, _ = futs[fut]
+            for r in fut.result():
+                text = f"TECHNIQUE: {r.get('technique','')}\nFINDINGS: {r['findings']}\nIMPRESSION: {r['impression']}".strip()
+                key = text.lower()[:160]
+                if key in seen:
+                    continue  # dedup near-identical reports
+                seen.add(key)
+                corpus.append({"text": text, "study_type": code, "modality": label,
+                               "region": region, "impression": r["impression"]})
+            done += 1
+            print(f"  reports {done}/{len(tasks)} chunks · corpus={len(corpus)}", end="\r", flush=True)
+    rng.shuffle(corpus)
+    for i, c in enumerate(corpus, 1):
+        c["id"] = f"r{i:05d}"
+    print(f"\n  corpus: {len(corpus)} unique reports")
+
+    # ── queries: derive from sampled reports (labels correct by construction) ──
     chosen = rng.sample(corpus, min(args.queries, len(corpus)))
+    qbatches = [chosen[i:i + args.query_batch] for i in range(0, len(chosen), args.query_batch)]
     queries: list[dict] = []
-    for i in range(0, len(chosen), args.batch):
-        batch = chosen[i : i + args.batch]
-        for q in gen_queries(client, batch):
-            rid = q.get("id")
-            if any(c["id"] == rid for c in batch):
-                queries.append({
-                    "query": q["query"],
-                    "relevant_ids": [rid],
-                    "expected_answer": q.get("expected_answer", ""),
-                })
-        print(f"  queries {min(i + args.batch, len(chosen))}/{len(chosen)}", flush=True)
+    done = 0
+    with ThreadPoolExecutor(max_workers=args.workers) as ex:
+        futs = [ex.submit(_query_chunk, client, b) for b in qbatches]
+        for fut in as_completed(futs):
+            for q in fut.result():
+                queries.append({"query": q["query"], "relevant_ids": [q["id"]],
+                                "expected_answer": q.get("expected_answer", "")})
+            done += 1
+            print(f"  queries {done}/{len(qbatches)} chunks · queries={len(queries)}", end="\r", flush=True)
+    print(f"\n  queries: {len(queries)}")
 
     # ── write ──
     with open(os.path.join(args.out, "corpus.jsonl"), "w") as f:
