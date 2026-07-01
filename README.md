@@ -25,10 +25,12 @@ report.to_json("report.json")
 ## Install
 
 ```bash
-pip install mirra                  # core (label-based retrieval metrics)
-pip install "mirra[openai]"        # + LLM judge via OpenAI
-pip install "mirra[anthropic]"     # + LLM judge via Anthropic
+pip install mirra-eval               # core (label-based retrieval metrics)
+pip install "mirra-eval[openai]"     # + LLM judge via OpenAI
+pip install "mirra-eval[anthropic]"  # + LLM judge via Anthropic
 ```
+
+The distribution is `mirra-eval`; the import name is `mirra` (`from mirra import evaluate`).
 
 ## Your agent
 
